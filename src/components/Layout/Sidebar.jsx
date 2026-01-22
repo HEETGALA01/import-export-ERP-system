@@ -9,10 +9,11 @@ import {
   FiPackage,
   FiFileText,
   FiFile,
-  FiBarChart2
+  FiBarChart2,
+  FiSmartphone
 } from 'react-icons/fi'
 
-const Sidebar = ({ isOpen }) => {
+const Sidebar = ({ isOpen, onMobileMode }) => {
   const location = useLocation()
 
   const menuItems = [
@@ -66,6 +67,17 @@ const Sidebar = ({ isOpen }) => {
               </Link>
             )
           })}
+
+          {/* Mobile View Button */}
+          <div className="mx-2 mt-4 pt-4 border-t border-navy-800">
+            <button
+              onClick={onMobileMode}
+              className="w-full flex items-center px-4 py-3 rounded-lg transition-all duration-200 bg-gradient-to-r from-primary-500 to-primary-700 text-white hover:from-primary-600 hover:to-primary-800 shadow-lg hover:shadow-xl"
+            >
+              <FiSmartphone className={`${isOpen ? 'mr-3' : 'mx-auto'} text-xl flex-shrink-0`} />
+              {isOpen && <span className="text-sm font-medium">Mobile View</span>}
+            </button>
+          </div>
         </nav>
 
         {/* Footer */}

@@ -11,14 +11,21 @@ import Inventory from './components/Inventory/Inventory'
 import Invoices from './components/Invoices/Invoices'
 import Documents from './components/Documents/Documents'
 import Reports from './components/Reports/Reports'
+import MobileERP from './components/MobileERP/MobileERP'
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [mobileMode, setMobileMode] = useState(false)
+
+  // If mobile mode is active, show only mobile view
+  if (mobileMode) {
+    return <MobileERP onClose={() => setMobileMode(false)} />
+  }
 
   return (
     <Router>
       <div className="flex h-screen bg-gray-50">
-        <Sidebar isOpen={sidebarOpen} />
+        <Sidebar isOpen={sidebarOpen} onMobileMode={() => setMobileMode(true)} />
         <div className="flex-1 flex flex-col overflow-hidden">
           <Header toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
           <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-6">
