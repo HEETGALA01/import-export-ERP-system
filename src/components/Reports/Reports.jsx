@@ -4,6 +4,8 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
 } from 'recharts'
 import { FiDownload, FiFilter, FiTrendingUp, FiDollarSign } from 'react-icons/fi'
+import jsPDF from 'jspdf'
+import 'jspdf-autotable'
 
 const Reports = () => {
   const [reportType, setReportType] = useState('sales')
@@ -74,6 +76,131 @@ const Reports = () => {
     { name: 'Global Sources', country: 'Germany', orders: 20, spending: '₹24.8M' },
     { name: 'Pacific Vendors', country: 'Singapore', orders: 16, spending: '₹18.2M' },
   ]
+
+  // Export Report Function
+  const exportReport = () => {
+    const doc = new jsPDF()
+    
+    // Header
+    doc.setFillColor(59, 130, 246)
+    doc.rect(0, 0, 210, 35, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(22)
+    doc.text('BUSINESS REPORT', 105, 20, { align: 'center' })
+    doc.setFontSize(11)
+    doc.text(`Report Type: ${reportType.charAt(0).toUpperCase() + reportType.slice(1)} | Date Range: ${dateRange}`, 105, 28, { align: 'center' })
+    
+    doc.setTextColor(0, 0, 0)
+    doc.setFontSize(10)
+    
+    let startY = 50
+    
+    // Sales Report
+    if (reportType === 'sales') {
+      doc.setFontSize(14)
+      doc.setFont(undefined, 'bold')
+      doc.text('Sales Report', 20, startY)
+      doc.setFont(undefined, 'normal')
+      
+      doc.autoTable({
+        startY: startY + 5,
+        head: [['Month', 'Sales (₹M)', 'Orders']],
+        body: salesData.map(item => [item.month, item.sales, item.orders]),
+        theme: 'grid',
+        headStyles: { fillColor: [59, 130, 246] }
+      })
+      
+      startY = doc.lastAutoTable.finalY + 15
+      doc.setFontSize(14)
+      doc.setFont(undefined, 'bold')
+      doc.text('Top Customers', 20, startY)
+      
+      doc.autoTable({
+        startY: startY + 5,
+        head: [['Customer', 'Country', 'Orders', 'Revenue']],
+        body: topCustomers.map(c => [c.name, c.country, c.orders, c.revenue]),
+        theme: 'grid',
+        headStyles: { fillColor: [59, 130, 246] }
+      })
+    }
+    
+    // Purchase Report
+    else if (reportType === 'purchase') {
+      doc.setFontSize(14)
+      doc.setFont(undefined, 'bold')
+      doc.text('Purchase Report', 20, startY)
+      doc.setFont(undefined, 'normal')
+      
+      doc.autoTable({
+        startY: startY + 5,
+        head: [['Month', 'Purchase (₹M)', 'Orders']],
+        body: purchaseData.map(item => [item.month, item.purchase, item.orders]),
+        theme: 'grid',
+        headStyles: { fillColor: [59, 130, 246] }
+      })
+      
+      startY = doc.lastAutoTable.finalY + 15
+      doc.setFontSize(14)
+      doc.setFont(undefined, 'bold')
+      doc.text('Top Vendors', 20, startY)
+      
+      doc.autoTable({
+        startY: startY + 5,
+        head: [['Vendor', 'Country', 'Orders', 'Spending']],
+        body: topVendors.map(v => [v.name, v.country, v.orders, v.spending]),
+        theme: 'grid',
+        headStyles: { fillColor: [59, 130, 246] }
+      })
+    }
+    
+    // Profit & Loss Report
+    else if (reportType === 'profit') {
+      doc.setFontSize(14)
+      doc.setFont(undefined, 'bold')
+      doc.text('Profit & Loss Statement', 20, startY)
+      doc.setFont(undefined, 'normal')
+      
+      doc.autoTable({
+        startY: startY + 5,
+        head: [['Month', 'Revenue (₹M)', 'Cost (₹M)', 'Profit (₹M)']],
+        body: profitLossData.map(item => [item.month, item.revenue, item.cost, item.profit]),
+        theme: 'grid',
+        headStyles: { fillColor: [59, 130, 246] }
+      })
+      
+      const totalRevenue = profitLossData.reduce((sum, item) => sum + item.revenue, 0).toFixed(1)
+      const totalCost = profitLossData.reduce((sum, item) => sum + item.cost, 0).toFixed(1)
+      const totalProfit = profitLossData.reduce((sum, item) => sum + item.profit, 0).toFixed(1)
+      
+      startY = doc.lastAutoTable.finalY + 10
+      doc.setFont(undefined, 'bold')
+      doc.text(`Total Revenue: ₹${totalRevenue}M | Total Cost: ₹${totalCost}M | Net Profit: ₹${totalProfit}M`, 20, startY)
+    }
+    
+    // Country-wise Export Report
+    else if (reportType === 'country') {
+      doc.setFontSize(14)
+      doc.setFont(undefined, 'bold')
+      doc.text('Country-wise Export Report', 20, startY)
+      doc.setFont(undefined, 'normal')
+      
+      doc.autoTable({
+        startY: startY + 5,
+        head: [['Country', 'Export Value (₹M)', 'Percentage']],
+        body: countryExports.map(item => [item.country, item.value, `${item.percentage}%`]),
+        theme: 'grid',
+        headStyles: { fillColor: [59, 130, 246] }
+      })
+    }
+    
+    // Footer
+    doc.setFontSize(9)
+    doc.setTextColor(128, 128, 128)
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 105, 285, { align: 'center' })
+    doc.text('Confidential Business Report', 105, 290, { align: 'center' })
+    
+    doc.save(`Business_Report_${reportType}_${new Date().toISOString().split('T')[0]}.pdf`)
+  }
 
   const renderSalesReport = () => (
     <div className="space-y-6">
@@ -348,7 +475,10 @@ const Reports = () => {
           <h1 className="text-3xl font-bold text-gray-800">Reports & Analytics</h1>
           <p className="text-gray-600 mt-1">Comprehensive business insights</p>
         </div>
-        <button className="flex items-center space-x-2 bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition-colors shadow-sm">
+        <button 
+          onClick={exportReport}
+          className="flex items-center space-x-2 bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition-colors shadow-sm"
+        >
           <FiDownload />
           <span>Export Report</span>
         </button>

@@ -1,10 +1,86 @@
 import React, { useState } from 'react'
-import { FiPlus, FiEye, FiDownload, FiFilter } from 'react-icons/fi'
+import { FiPlus, FiEye, FiDownload, FiFilter, FiX } from 'react-icons/fi'
+import jsPDF from 'jspdf'
+import 'jspdf-autotable'
 
 const Invoices = () => {
   const [showModal, setShowModal] = useState(false)
   const [viewModal, setViewModal] = useState(null)
   const [filterStatus, setFilterStatus] = useState('all')
+
+  const downloadInvoicePDF = (invoice) => {
+    const doc = new jsPDF()
+    
+    // Header
+    doc.setFontSize(20)
+    doc.setTextColor(59, 130, 246)
+    doc.text('TAX INVOICE', 105, 20, { align: 'center' })
+    
+    // Company Details
+    doc.setFontSize(10)
+    doc.setTextColor(0, 0, 0)
+    doc.text('Your Company Name', 20, 35)
+    doc.text('Address Line 1, City, State - 000000', 20, 40)
+    doc.text('GSTIN: 00XXXXX0000X0X0', 20, 45)
+    doc.text('Email: info@yourcompany.com', 20, 50)
+    
+    // Invoice Details
+    doc.setFontSize(10)
+    doc.text(`Invoice No: ${invoice.id}`, 140, 35)
+    doc.text(`Date: ${invoice.issueDate}`, 140, 40)
+    doc.text(`Due Date: ${invoice.dueDate}`, 140, 45)
+    doc.text(`Order ID: ${invoice.orderId}`, 140, 50)
+    
+    // Bill To
+    doc.setFontSize(12)
+    doc.setFont(undefined, 'bold')
+    doc.text('Bill To:', 20, 65)
+    doc.setFont(undefined, 'normal')
+    doc.setFontSize(10)
+    doc.text(invoice.customer, 20, 72)
+    
+    // Line
+    doc.setDrawColor(200, 200, 200)
+    doc.line(20, 80, 190, 80)
+    
+    // Table
+    doc.autoTable({
+      startY: 85,
+      head: [['Description', 'Amount', 'Tax', 'Total']],
+      body: [
+        ['Invoice Amount', invoice.amount, invoice.tax, invoice.total],
+      ],
+      theme: 'grid',
+      headStyles: { fillColor: [59, 130, 246] },
+      styles: { fontSize: 10 }
+    })
+    
+    // Payment Status
+    let finalY = doc.lastAutoTable.finalY + 15
+    doc.setFontSize(11)
+    doc.setFont(undefined, 'bold')
+    doc.text(`Status: ${invoice.status}`, 20, finalY)
+    
+    if (invoice.paidDate) {
+      doc.text(`Paid Date: ${invoice.paidDate}`, 20, finalY + 7)
+    }
+    
+    if (invoice.paidAmount) {
+      doc.text(`Paid Amount: ${invoice.paidAmount}`, 20, finalY + 14)
+      const remaining = parseFloat(invoice.total.replace(/[₹,]/g, '')) - parseFloat(invoice.paidAmount.replace(/[₹,]/g, ''))
+      doc.text(`Balance Due: ₹${remaining.toLocaleString('en-IN')}`, 20, finalY + 21)
+    }
+    
+    // Footer
+    doc.setFontSize(9)
+    doc.setFont(undefined, 'normal')
+    doc.setTextColor(128, 128, 128)
+    doc.text('Thank you for your business!', 105, 280, { align: 'center' })
+    doc.text('This is a computer generated invoice', 105, 285, { align: 'center' })
+    
+    // Save
+    doc.save(`Invoice_${invoice.id}.pdf`)
+  }
 
   const [invoices, setInvoices] = useState([
     { id: 'INV-1234', orderId: 'SO-1234', customer: 'ABC Corporation', amount: '₹12,50,000', tax: '₹2,25,000', total: '₹14,75,000', status: 'Paid', dueDate: '2026-01-25', paidDate: '2026-01-24', issueDate: '2026-01-15' },
@@ -203,8 +279,9 @@ const Invoices = () => {
                         <FiEye />
                       </button>
                       <button
+                        onClick={() => downloadInvoicePDF(invoice)}
                         className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                        title="Download"
+                        title="Download PDF"
                       >
                         <FiDownload />
                       </button>
@@ -370,6 +447,115 @@ const Invoices = () => {
                 </button>
                 <button className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
                   Download PDF
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Invoice Modal */}
+      {viewModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200 flex justify-between items-center sticky top-0 bg-white">
+              <h2 className="text-2xl font-bold text-gray-800">Invoice Details</h2>
+              <button
+                onClick={() => setViewModal(null)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <FiX size={24} />
+              </button>
+            </div>
+            <div className="p-6 space-y-6">
+              {/* Invoice Header */}
+              <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-6 rounded-lg">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h3 className="text-3xl font-bold text-blue-600">{viewModal.id}</h3>
+                    <p className="text-gray-600 mt-1">Order: {viewModal.orderId}</p>
+                  </div>
+                  <div className="text-right">
+                    <span className={`inline-block px-4 py-2 rounded-full text-sm font-semibold ${statusColors[viewModal.status]}`}>
+                      {viewModal.status}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Customer Info */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h4 className="text-lg font-semibold text-gray-800 mb-3">Customer Information</h4>
+                <p className="text-xl font-semibold text-gray-900">{viewModal.customer}</p>
+              </div>
+
+              {/* Dates */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-white border border-gray-200 p-4 rounded-lg">
+                  <p className="text-sm text-gray-600 mb-1">Issue Date</p>
+                  <p className="text-lg font-semibold text-gray-800">{viewModal.issueDate}</p>
+                </div>
+                <div className="bg-white border border-gray-200 p-4 rounded-lg">
+                  <p className="text-sm text-gray-600 mb-1">Due Date</p>
+                  <p className="text-lg font-semibold text-gray-800">{viewModal.dueDate}</p>
+                </div>
+                <div className="bg-white border border-gray-200 p-4 rounded-lg">
+                  <p className="text-sm text-gray-600 mb-1">Paid Date</p>
+                  <p className="text-lg font-semibold text-gray-800">{viewModal.paidDate || 'Not Paid'}</p>
+                </div>
+              </div>
+
+              {/* Amount Breakdown */}
+              <div className="bg-gray-50 p-6 rounded-lg">
+                <h4 className="text-lg font-semibold text-gray-800 mb-4">Amount Breakdown</h4>
+                <div className="space-y-3">
+                  <div className="flex justify-between text-lg">
+                    <span className="text-gray-600">Subtotal</span>
+                    <span className="font-semibold text-gray-800">{viewModal.amount}</span>
+                  </div>
+                  <div className="flex justify-between text-lg">
+                    <span className="text-gray-600">Tax (GST 18%)</span>
+                    <span className="font-semibold text-gray-800">{viewModal.tax}</span>
+                  </div>
+                  <div className="border-t-2 border-gray-300 pt-3 flex justify-between text-xl">
+                    <span className="font-bold text-gray-800">Total Amount</span>
+                    <span className="font-bold text-blue-600">{viewModal.total}</span>
+                  </div>
+                  
+                  {viewModal.paidAmount && (
+                    <>
+                      <div className="flex justify-between text-lg text-green-600">
+                        <span className="font-medium">Paid Amount</span>
+                        <span className="font-semibold">{viewModal.paidAmount}</span>
+                      </div>
+                      <div className="flex justify-between text-lg text-red-600">
+                        <span className="font-medium">Balance Due</span>
+                        <span className="font-semibold">
+                          ₹{(parseFloat(viewModal.total.replace(/[₹,]/g, '')) - parseFloat(viewModal.paidAmount.replace(/[₹,]/g, ''))).toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end space-x-3 pt-4">
+                <button
+                  onClick={() => setViewModal(null)}
+                  className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => {
+                    downloadInvoicePDF(viewModal)
+                    setViewModal(null)
+                  }}
+                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+                >
+                  <FiDownload />
+                  <span>Download PDF</span>
                 </button>
               </div>
             </div>

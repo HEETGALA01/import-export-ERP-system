@@ -1,5 +1,7 @@
 import React, { useState } from 'react'
-import { FiPlus, FiEdit2, FiEye, FiFilter } from 'react-icons/fi'
+import { FiPlus, FiEdit2, FiEye, FiFilter, FiDownload, FiFileText } from 'react-icons/fi'
+import jsPDF from 'jspdf'
+import 'jspdf-autotable'
 
 const SalesOrders = () => {
   const [showModal, setShowModal] = useState(false)
@@ -40,6 +42,90 @@ const SalesOrders = () => {
     amount: '',
     deliveryDate: ''
   })
+
+  // PDF Generation Function
+  const downloadOrderPDF = (order) => {
+    const doc = new jsPDF()
+    
+    // Header
+    doc.setFillColor(59, 130, 246)
+    doc.rect(0, 0, 210, 40, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(24)
+    doc.text('SALES ORDER', 105, 20, { align: 'center' })
+    doc.setFontSize(12)
+    doc.text('Export Order Document', 105, 30, { align: 'center' })
+    
+    // Reset text color
+    doc.setTextColor(0, 0, 0)
+    doc.setFontSize(10)
+    
+    // Order Info
+    doc.text(`Order ID: ${order.id}`, 20, 55)
+    doc.text(`Date: ${order.date}`, 20, 62)
+    doc.text(`Status: ${order.status}`, 20, 69)
+    
+    // Customer Info
+    doc.setFontSize(12)
+    doc.setFont(undefined, 'bold')
+    doc.text('Customer Information', 20, 85)
+    doc.setFont(undefined, 'normal')
+    doc.setFontSize(10)
+    doc.text(`Customer: ${order.customer}`, 20, 93)
+    doc.text(`Country: ${order.country}`, 20, 100)
+    doc.text(`Delivery Date: ${order.deliveryDate}`, 20, 107)
+    
+    // Order Details Table
+    doc.autoTable({
+      startY: 120,
+      head: [['Product', 'Quantity', 'Amount']],
+      body: [[order.products, order.quantity, order.amount]],
+      theme: 'grid',
+      headStyles: { fillColor: [59, 130, 246] }
+    })
+    
+    // Total
+    const finalY = doc.lastAutoTable.finalY + 20
+    doc.setFontSize(12)
+    doc.setFont(undefined, 'bold')
+    doc.text(`Total Amount: ${order.amount}`, 20, finalY)
+    
+    // Footer
+    doc.setFontSize(9)
+    doc.setFont(undefined, 'normal')
+    doc.text('Thank you for your business!', 105, 280, { align: 'center' })
+    
+    doc.save(`Sales_Order_${order.id}.pdf`)
+  }
+
+  // Export to CSV
+  const exportToCSV = () => {
+    const headers = ['Order ID', 'Customer', 'Country', 'Products', 'Quantity', 'Amount', 'Status', 'Date', 'Delivery Date']
+    const csvData = filteredOrders.map(order => [
+      order.id,
+      order.customer,
+      order.country,
+      order.products,
+      order.quantity,
+      order.amount,
+      order.status,
+      order.date,
+      order.deliveryDate
+    ])
+    
+    const csvContent = [
+      headers.join(','),
+      ...csvData.map(row => row.join(','))
+    ].join('\n')
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `sales_orders_${new Date().toISOString().split('T')[0]}.csv`
+    a.click()
+    window.URL.revokeObjectURL(url)
+  }
 
   const statusColors = {
     'Draft': 'bg-gray-100 text-gray-700',
@@ -90,13 +176,22 @@ const SalesOrders = () => {
           <h1 className="text-3xl font-bold text-gray-800">Sales Orders (Export)</h1>
           <p className="text-gray-600 mt-1">Manage export sales orders</p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center space-x-2 bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition-colors shadow-sm"
-        >
-          <FiPlus />
-          <span>Create Order</span>
-        </button>
+        <div className="flex space-x-3">
+          <button
+            onClick={exportToCSV}
+            className="flex items-center space-x-2 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors shadow-sm"
+          >
+            <FiDownload />
+            <span>Export CSV</span>
+          </button>
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center space-x-2 bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition-colors shadow-sm"
+          >
+            <FiPlus />
+            <span>Create Order</span>
+          </button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -175,12 +270,22 @@ const SalesOrders = () => {
                     </select>
                   </td>
                   <td className="py-4 px-6">
-                    <button
-                      onClick={() => setViewModal(order)}
-                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                    >
-                      <FiEye />
-                    </button>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => setViewModal(order)}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="View Details"
+                      >
+                        <FiEye />
+                      </button>
+                      <button
+                        onClick={() => downloadOrderPDF(order)}
+                        className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                        title="Download PDF"
+                      >
+                        <FiDownload />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -330,7 +435,14 @@ const SalesOrders = () => {
                   <p className="text-base font-medium text-gray-800">{viewModal.deliveryDate}</p>
                 </div>
               </div>
-              <div className="flex justify-end mt-6">
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => downloadOrderPDF(viewModal)}
+                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+                >
+                  <FiDownload />
+                  <span>Download PDF</span>
+                </button>
                 <button
                   onClick={() => setViewModal(null)}
                   className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"

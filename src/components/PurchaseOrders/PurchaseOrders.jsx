@@ -1,5 +1,7 @@
 import React, { useState } from 'react'
-import { FiPlus, FiEye, FiFilter } from 'react-icons/fi'
+import { FiPlus, FiEye, FiFilter, FiDownload, FiFileText } from 'react-icons/fi'
+import jsPDF from 'jspdf'
+import 'jspdf-autotable'
 
 const PurchaseOrders = () => {
   const [showModal, setShowModal] = useState(false)
@@ -51,6 +53,92 @@ const PurchaseOrders = () => {
 
   const incoterms = ['FOB', 'CIF', 'EXW', 'DAP', 'DDP', 'FCA', 'CFR']
 
+  // PDF Generation Function
+  const downloadOrderPDF = (order) => {
+    const doc = new jsPDF()
+    
+    // Header
+    doc.setFillColor(147, 51, 234)
+    doc.rect(0, 0, 210, 40, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(24)
+    doc.text('PURCHASE ORDER', 105, 20, { align: 'center' })
+    doc.setFontSize(12)
+    doc.text('Import Order Document', 105, 30, { align: 'center' })
+    
+    // Reset text color
+    doc.setTextColor(0, 0, 0)
+    doc.setFontSize(10)
+    
+    // Order Info
+    doc.text(`PO Number: ${order.id}`, 20, 55)
+    doc.text(`Date: ${order.date}`, 20, 62)
+    doc.text(`Status: ${order.status}`, 20, 69)
+    doc.text(`Incoterm: ${order.incoterm}`, 20, 76)
+    
+    // Vendor Info
+    doc.setFontSize(12)
+    doc.setFont(undefined, 'bold')
+    doc.text('Vendor Information', 20, 90)
+    doc.setFont(undefined, 'normal')
+    doc.setFontSize(10)
+    doc.text(`Vendor: ${order.vendor}`, 20, 98)
+    doc.text(`Country: ${order.country}`, 20, 105)
+    doc.text(`Expected Delivery: ${order.expectedDate}`, 20, 112)
+    
+    // Order Details Table
+    doc.autoTable({
+      startY: 125,
+      head: [['Product', 'Quantity', 'Amount']],
+      body: [[order.products, order.quantity, order.amount]],
+      theme: 'grid',
+      headStyles: { fillColor: [147, 51, 234] }
+    })
+    
+    // Total
+    const finalY = doc.lastAutoTable.finalY + 20
+    doc.setFontSize(12)
+    doc.setFont(undefined, 'bold')
+    doc.text(`Total Amount: ${order.amount}`, 20, finalY)
+    
+    // Footer
+    doc.setFontSize(9)
+    doc.setFont(undefined, 'normal')
+    doc.text('Purchase Order - Import Document', 105, 280, { align: 'center' })
+    
+    doc.save(`Purchase_Order_${order.id}.pdf`)
+  }
+
+  // Export to CSV
+  const exportToCSV = () => {
+    const headers = ['PO Number', 'Vendor', 'Country', 'Products', 'Quantity', 'Amount', 'Incoterm', 'Status', 'Date', 'Expected Date']
+    const csvData = filteredOrders.map(order => [
+      order.id,
+      order.vendor,
+      order.country,
+      order.products,
+      order.quantity,
+      order.amount,
+      order.incoterm,
+      order.status,
+      order.date,
+      order.expectedDate
+    ])
+    
+    const csvContent = [
+      headers.join(','),
+      ...csvData.map(row => row.join(','))
+    ].join('\n')
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `purchase_orders_${new Date().toISOString().split('T')[0]}.csv`
+    a.click()
+    window.URL.revokeObjectURL(url)
+  }
+
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
   }
@@ -94,13 +182,22 @@ const PurchaseOrders = () => {
           <h1 className="text-3xl font-bold text-gray-800">Purchase Orders (Import)</h1>
           <p className="text-gray-600 mt-1">Manage import purchase orders</p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center space-x-2 bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition-colors shadow-sm"
-        >
-          <FiPlus />
-          <span>Create Order</span>
-        </button>
+        <div className="flex space-x-3">
+          <button
+            onClick={exportToCSV}
+            className="flex items-center space-x-2 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors shadow-sm"
+          >
+            <FiDownload />
+            <span>Export CSV</span>
+          </button>
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center space-x-2 bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition-colors shadow-sm"
+          >
+            <FiPlus />
+            <span>Create Order</span>
+          </button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -185,12 +282,22 @@ const PurchaseOrders = () => {
                     </select>
                   </td>
                   <td className="py-4 px-6">
-                    <button
-                      onClick={() => setViewModal(order)}
-                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                    >
-                      <FiEye />
-                    </button>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => setViewModal(order)}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="View Details"
+                      >
+                        <FiEye />
+                      </button>
+                      <button
+                        onClick={() => downloadOrderPDF(order)}
+                        className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                        title="Download PDF"
+                      >
+                        <FiDownload />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -354,7 +461,14 @@ const PurchaseOrders = () => {
                   <p className="text-base font-medium text-gray-800">{viewModal.expectedDate}</p>
                 </div>
               </div>
-              <div className="flex justify-end mt-6">
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => downloadOrderPDF(viewModal)}
+                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+                >
+                  <FiDownload />
+                  <span>Download PDF</span>
+                </button>
                 <button
                   onClick={() => setViewModal(null)}
                   className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"

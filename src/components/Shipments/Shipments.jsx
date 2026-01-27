@@ -1,5 +1,7 @@
 import React, { useState } from 'react'
-import { FiPlus, FiTruck, FiAnchor, FiSend } from 'react-icons/fi'
+import { FiPlus, FiTruck, FiAnchor, FiSend, FiDownload, FiEye } from 'react-icons/fi'
+import jsPDF from 'jspdf'
+import 'jspdf-autotable'
 
 const Shipments = () => {
   const [showModal, setShowModal] = useState(false)
@@ -181,6 +183,105 @@ const Shipments = () => {
     'Delayed': 'bg-red-100 text-red-700',
   }
 
+  // PDF Generation Function
+  const downloadShipmentPDF = (shipment) => {
+    const doc = new jsPDF()
+    
+    // Header
+    doc.setFillColor(16, 185, 129)
+    doc.rect(0, 0, 210, 40, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(24)
+    doc.text('SHIPMENT DOCUMENT', 105, 20, { align: 'center' })
+    doc.setFontSize(12)
+    doc.text('Tracking & Transit Information', 105, 30, { align: 'center' })
+    
+    // Reset text color
+    doc.setTextColor(0, 0, 0)
+    doc.setFontSize(10)
+    
+    // Shipment Info
+    doc.text(`Shipment ID: ${shipment.id}`, 20, 55)
+    doc.text(`Order ID: ${shipment.orderId}`, 20, 62)
+    doc.text(`Status: ${shipment.status}`, 20, 69)
+    doc.text(`Tracking No: ${shipment.trackingNo}`, 20, 76)
+    
+    // Origin & Destination
+    doc.setFontSize(12)
+    doc.setFont(undefined, 'bold')
+    doc.text('Shipping Details', 20, 90)
+    doc.setFont(undefined, 'normal')
+    doc.setFontSize(10)
+    doc.text(`Origin: ${shipment.origin}`, 20, 98)
+    doc.text(`Destination: ${shipment.destination}`, 20, 105)
+    doc.text(`Mode: ${shipment.mode}`, 20, 112)
+    doc.text(`Carrier: ${shipment.carrier}`, 20, 119)
+    doc.text(`Weight: ${shipment.weight}`, 20, 126)
+    
+    // Dates
+    doc.setFontSize(12)
+    doc.setFont(undefined, 'bold')
+    doc.text('Schedule', 110, 90)
+    doc.setFont(undefined, 'normal')
+    doc.setFontSize(10)
+    doc.text(`Ship Date: ${shipment.shipDate}`, 110, 98)
+    doc.text(`ETA: ${shipment.eta}`, 110, 105)
+    
+    // Timeline Table
+    if (shipment.timeline) {
+      const timelineData = shipment.timeline.map(event => [
+        event.date,
+        event.event,
+        event.completed ? 'Completed' : 'Pending'
+      ])
+      
+      doc.autoTable({
+        startY: 140,
+        head: [['Date', 'Event', 'Status']],
+        body: timelineData,
+        theme: 'grid',
+        headStyles: { fillColor: [16, 185, 129] }
+      })
+    }
+    
+    // Footer
+    doc.setFontSize(9)
+    doc.text('Shipment Tracking Document', 105, 280, { align: 'center' })
+    
+    doc.save(`Shipment_${shipment.id}.pdf`)
+  }
+
+  // Export to CSV
+  const exportToCSV = () => {
+    const headers = ['Shipment ID', 'Order ID', 'Origin', 'Destination', 'Mode', 'Carrier', 'Tracking No', 'Weight', 'Status', 'Ship Date', 'ETA']
+    const csvData = shipments.map(shipment => [
+      shipment.id,
+      shipment.orderId,
+      shipment.origin,
+      shipment.destination,
+      shipment.mode,
+      shipment.carrier,
+      shipment.trackingNo,
+      shipment.weight,
+      shipment.status,
+      shipment.shipDate,
+      shipment.eta
+    ])
+    
+    const csvContent = [
+      headers.join(','),
+      ...csvData.map(row => row.join(','))
+    ].join('\n')
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `shipments_${new Date().toISOString().split('T')[0]}.csv`
+    a.click()
+    window.URL.revokeObjectURL(url)
+  }
+
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
   }
@@ -228,13 +329,22 @@ const Shipments = () => {
           <h1 className="text-3xl font-bold text-gray-800">Shipment & Logistics</h1>
           <p className="text-gray-600 mt-1">Track and manage shipments</p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center space-x-2 bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition-colors shadow-sm"
-        >
-          <FiPlus />
-          <span>Create Shipment</span>
-        </button>
+        <div className="flex space-x-3">
+          <button
+            onClick={exportToCSV}
+            className="flex items-center space-x-2 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors shadow-sm"
+          >
+            <FiDownload />
+            <span>Export CSV</span>
+          </button>
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center space-x-2 bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition-colors shadow-sm"
+          >
+            <FiPlus />
+            <span>Create Shipment</span>
+          </button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -318,13 +428,23 @@ const Shipments = () => {
               </div>
             </div>
 
-            {/* Action */}
-            <button
-              onClick={() => setViewModal(shipment)}
-              className="w-full py-2 bg-primary-50 text-primary-600 rounded-lg hover:bg-primary-100 transition-colors text-sm font-medium"
-            >
-              View Tracking Timeline
-            </button>
+            {/* Actions */}
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setViewModal(shipment)}
+                className="flex-1 py-2 bg-primary-50 text-primary-600 rounded-lg hover:bg-primary-100 transition-colors text-sm font-medium flex items-center justify-center space-x-2"
+              >
+                <FiEye />
+                <span>View Timeline</span>
+              </button>
+              <button
+                onClick={() => downloadShipmentPDF(shipment)}
+                className="flex-1 py-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium flex items-center justify-center space-x-2"
+              >
+                <FiDownload />
+                <span>Download PDF</span>
+              </button>
+            </div>
           </div>
         ))}
       </div>
@@ -495,7 +615,14 @@ const Shipments = () => {
                   </div>
                 ))}
               </div>
-              <div className="flex justify-end mt-6">
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => downloadShipmentPDF(viewModal)}
+                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+                >
+                  <FiDownload />
+                  <span>Download PDF</span>
+                </button>
                 <button
                   onClick={() => setViewModal(null)}
                   className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"

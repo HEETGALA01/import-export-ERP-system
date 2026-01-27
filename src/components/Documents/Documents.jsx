@@ -1,5 +1,7 @@
 import React, { useState } from 'react'
 import { FiPlus, FiDownload, FiEye, FiFile, FiUpload, FiX, FiAlertTriangle, FiCheckCircle, FiAlertCircle } from 'react-icons/fi'
+import jsPDF from 'jspdf'
+import 'jspdf-autotable'
 
 const Documents = () => {
   const [activeTab, setActiveTab] = useState('all')
@@ -7,6 +9,89 @@ const Documents = () => {
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [viewModal, setViewModal] = useState(null)
   const [uploadFile, setUploadFile] = useState(null)
+
+  const downloadDocumentPDF = (doc) => {
+    const pdf = new jsPDF()
+    
+    // Header
+    pdf.setFontSize(18)
+    pdf.setTextColor(37, 99, 235)
+    pdf.text(doc.type.toUpperCase(), 105, 20, { align: 'center' })
+    
+    // Document Info
+    pdf.setFontSize(10)
+    pdf.setTextColor(0, 0, 0)
+    pdf.text(`Document No: ${doc.docNumber}`, 20, 35)
+    pdf.text(`Order ID: ${doc.orderId}`, 20, 40)
+    pdf.text(`Issue Date: ${doc.issueDate}`, 20, 45)
+    pdf.text(`Valid Until: ${doc.validityDate}`, 20, 50)
+    pdf.text(`Status: ${doc.status}`, 140, 35)
+    
+    // Line
+    pdf.setDrawColor(200, 200, 200)
+    pdf.line(20, 55, 190, 55)
+    
+    // Exporter & Importer
+    pdf.setFontSize(11)
+    pdf.setFont(undefined, 'bold')
+    pdf.text('EXPORTER', 20, 65)
+    pdf.setFont(undefined, 'normal')
+    pdf.setFontSize(9)
+    pdf.text(doc.exporter, 20, 71)
+    pdf.text(doc.exporterAddress, 20, 76, { maxWidth: 80 })
+    
+    pdf.setFontSize(11)
+    pdf.setFont(undefined, 'bold')
+    pdf.text('IMPORTER', 110, 65)
+    pdf.setFont(undefined, 'normal')
+    pdf.setFontSize(9)
+    pdf.text(doc.importer, 110, 71)
+    pdf.text(doc.importerAddress, 110, 76, { maxWidth: 80 })
+    
+    // Product Details Table
+    pdf.autoTable({
+      startY: 90,
+      head: [['Description', 'HS Code', 'Quantity', 'Unit', 'Value']],
+      body: [[
+        doc.productDescription,
+        doc.hsCode,
+        doc.quantity,
+        doc.unit,
+        `${doc.currency} ${doc.invoiceValue.toLocaleString()}`
+      ]],
+      theme: 'grid',
+      headStyles: { fillColor: [37, 99, 235] }
+    })
+    
+    // Shipping Details
+    let currentY = pdf.lastAutoTable.finalY + 10
+    pdf.setFontSize(11)
+    pdf.setFont(undefined, 'bold')
+    pdf.text('SHIPPING DETAILS', 20, currentY)
+    
+    pdf.autoTable({
+      startY: currentY + 5,
+      body: [
+        ['Incoterm:', doc.incoterm],
+        ['Shipping Mode:', doc.shippingMode],
+        ['Port of Loading:', doc.portLoading],
+        ['Port of Discharge:', doc.portDischarge],
+        ['Origin Country:', doc.originCountry],
+        ['Destination Country:', doc.destinationCountry],
+        ['Gross Weight:', `${doc.grossWeight} kg`],
+        ['Net Weight:', `${doc.netWeight} kg`]
+      ],
+      theme: 'plain',
+      styles: { fontSize: 9, cellPadding: 2 }
+    })
+    
+    // Footer
+    pdf.setFontSize(8)
+    pdf.setTextColor(128, 128, 128)
+    pdf.text('This is a computer generated document', 105, 280, { align: 'center' })
+    
+    pdf.save(`${doc.docNumber}.pdf`)
+  }
 
   const [documents, setDocuments] = useState([
     { 
@@ -1305,7 +1390,10 @@ const Documents = () => {
                     <FiEye />
                     <span>View</span>
                   </button>
-                  <button className="flex-1 flex items-center justify-center space-x-1 py-2 text-sm bg-green-50 text-green-600 rounded hover:bg-green-100 transition-colors">
+                  <button
+                    onClick={() => downloadDocumentPDF(doc)}
+                    className="flex-1 flex items-center justify-center space-x-1 py-2 text-sm bg-green-50 text-green-600 rounded hover:bg-green-100 transition-colors"
+                  >
                     <FiDownload />
                     <span>Download</span>
                   </button>
@@ -2004,7 +2092,13 @@ const Documents = () => {
                   <FiEye />
                   <span>Full Preview</span>
                 </button>
-                <button className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2">
+                <button
+                  onClick={() => {
+                    downloadDocumentPDF(viewModal)
+                    setViewModal(null)
+                  }}
+                  className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+                >
                   <FiDownload />
                   <span>Download PDF</span>
                 </button>
